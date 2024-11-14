@@ -1,0 +1,63 @@
+import aiogram
+import dp
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+import asyncio
+from TOKEN_API import BOT_TOKEN_API
+from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.dispatcher import FSMContext
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+
+TOKEN = BOT_TOKEN_API
+bot = aiogram.Bot(token=TOKEN)
+dp = aiogram.Dispatcher(bot, storage=MemoryStorage())
+KeyBoard = ReplyKeyboardMarkup()
+keyboard_click = KeyboardButton(text='Рассчитать')
+keyboard_click_2 = KeyboardButton(text='Информация')
+reply_markup = ReplyKeyboardMarkup(keyboard_click, resize_keyboard=True)
+reply_markup_2 = ReplyKeyboardMarkup(keyboard_click_2, resize_keyboard=True)
+KeyBoard.add(keyboard_click)
+KeyBoard.add(keyboard_click_2)
+
+class UserState(StatesGroup):
+    age = State()
+    growth = State()
+    weight = State()
+
+
+@dp.message_handler(text='Рассчитать')
+async def set_age(message):
+    await message.answer('Введите свой возраст')
+    await UserState.age.set()
+
+
+@dp.message_handler(state=UserState.age)
+async def set_growth(message, state):
+    await state.update_data(age=message.text)
+    await message.answer('Введите свой рост')
+    await UserState.growth.set()
+
+
+@dp.message_handler(state=UserState.growth)
+async def set_weight(message, state):
+    await state.update_data(growth=message.text)
+    await message.answer('Введите свой вес')
+    await UserState.weight.set()
+
+
+@dp.message_handler(state=UserState.weight)
+async def send_calories(message, state):
+    await state.update_data(weight=message.text)
+    data = await state.get_data()
+    BOO = 10
+    result_data = (BOO * float(data['weight'])) + (6.25 * float(data["growth"])) - (
+                4.92 * float(data["age"])) - 161
+    await message.answer(f'ваша норма колорий: {result_data}')
+    await state.finish()
+
+
+@dp.message_handler(commands='start')
+async def start(message):
+    await message.answer('Привет! Я бот помогающий твоему здоровью', reply_markup=KeyBoard)
+
+if __name__ == '__main__':
+    aiogram.executor.start_polling(dp, skip_updates=True)
